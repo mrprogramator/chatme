@@ -137,7 +137,7 @@ app.post('/search', function (req, res) {
     checkUserquery.on('end', function() {
 
         var getContactsquery = client.query({
-            name: 'check user',
+            name: 'get contacts',
             text: "SELECT contact from ddshvknkjjo1pe.public.chatmecont where login = $1",
             values: [login]
         })
