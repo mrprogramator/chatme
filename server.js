@@ -112,8 +112,9 @@ app.post('/login', function (req, res) {
 
 app.post('/search', function (req, res) {
     var login = req.query.login;
+    var searchText = req.query.searchText;
 
-    if (!login){
+    if (!searchText){
         res.send({result : false, message: 'must fill all fields'});
         return;
     }
@@ -126,7 +127,7 @@ app.post('/search', function (req, res) {
     var checkUserquery = client.query({
         name: 'check user',
         text: "SELECT login from ddshvknkjjo1pe.public.chatmeusr where login like $1",
-        values: ['%' + login + '%']
+        values: ['%' + searchText + '%']
     })
     
     checkUserquery.on('row', function (row){
@@ -134,9 +135,25 @@ app.post('/search', function (req, res) {
     })
 
     checkUserquery.on('end', function() {
-        client.end();
-        
-        res.send(results);
+
+        var getContactsquery = client.query({
+            name: 'check user',
+            text: "SELECT contact from ddshvknkjjo1pe.public.chatmecont where login = $1",
+            values: [login]
+        })
+
+        getContactsquery.on('row', function (row){
+            var contactAdded = results.filter(function (r) { return r.login == row.contact })[0];
+
+            if (contactAdded){
+                contactAdded.added = true;
+            }
+        })
+
+        getContactsquery.on('end', function () {
+            client.end();
+            res.send(results);
+        })
     });
 });
 
