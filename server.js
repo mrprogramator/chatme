@@ -139,3 +139,80 @@ app.post('/search', function (req, res) {
         res.send(results);
     });
 });
+
+app.post('/add', function (req, res) {
+    var usr1 = req.query.usr1;
+    var usr2 = req.query.usr2;
+
+    if (!usr1 || !usr2){
+        res.send({result : false, message: 'missing fields'});
+        return;
+    }
+
+    var results = [];
+    var userExists = false;
+
+    var client = new pg.Client(conString);
+    client.connect();
+    
+    var checkUserquery = client.query({
+        name: 'check user',
+        text: "SELECT usr1, usr2 from ddshvknkjjo1pe.public.chatmecont"
+                +" where usr1 = $1 OR usr2 = $1 OR usr1 = $2 OR usr2 = $2",
+        values: [usr1, usr2]
+    })
+    
+    checkUserquery.on('row', function (row){
+        userExists = true;
+    })
+
+    checkUserquery.on('end', function() {
+        if (!userExists){
+            var query = client.query({
+                name: 'insert contact',
+                text: "INSERT INTO ddshvknkjjo1pe.public.chatmecont(usr1, usr2) values($1,$2)",
+                values: [usr1, usr2]
+            })
+
+            query.on('end', function() {
+                client.end();
+                res.send({ result : true });
+            });
+        }
+        else{
+            client.end();
+            res.send({result : false, message: 'contact already added' });
+        }
+    });
+});
+
+app.post('/remove', function (req, res) {
+    var usr1 = req.query.usr1;
+    var usr2 = req.query.usr2;
+
+    if (!usr1 || !usr2){
+        res.send({result : false, message: 'missing fields'});
+        return;
+    }
+
+    var results = [];
+
+    var client = new pg.Client(conString);
+    client.connect();
+    
+    var checkUserquery = client.query({
+        name: 'check user',
+        text: "delete from ddshvknkjjo1pe.public.chatmecont"
+                +" where (usr1 = $1 AND usr2 = $2) OR (usr1 = $2 AND usr2 = $1)",
+        values: [usr1, usr2]
+    })
+    
+    checkUserquery.on('row', function (row){
+        console.log('deleted: ', row);
+    })
+
+    checkUserquery.on('end', function() {
+        client.end();
+        res.send({result : true });
+    });
+});
