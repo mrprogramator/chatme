@@ -141,10 +141,10 @@ app.post('/search', function (req, res) {
 });
 
 app.post('/add', function (req, res) {
-    var usr1 = req.query.usr1;
-    var usr2 = req.query.usr2;
+    var login = req.query.login;
+    var contact = req.query.contact;
 
-    if (!usr1 || !usr2){
+    if (!login || !contact){
         res.send({result : false, message: 'missing fields'});
         return;
     }
@@ -157,9 +157,9 @@ app.post('/add', function (req, res) {
     
     var checkUserquery = client.query({
         name: 'check user',
-        text: "SELECT usr1, usr2 from ddshvknkjjo1pe.public.chatmecont"
-                +" where usr1 = $1 OR usr2 = $1 OR usr1 = $2 OR usr2 = $2",
-        values: [usr1, usr2]
+        text: "SELECT login, contact from ddshvknkjjo1pe.public.chatmecont"
+                +" where login = $1 AND contact = $2",
+        values: [login, contact]
     })
     
     checkUserquery.on('row', function (row){
@@ -170,8 +170,8 @@ app.post('/add', function (req, res) {
         if (!userExists){
             var query = client.query({
                 name: 'insert contact',
-                text: "INSERT INTO ddshvknkjjo1pe.public.chatmecont(usr1, usr2) values($1,$2)",
-                values: [usr1, usr2]
+                text: "INSERT INTO ddshvknkjjo1pe.public.chatmecont(login, contact) values($1,$2)",
+                values: [login, contact]
             })
 
             query.on('end', function() {
@@ -187,10 +187,10 @@ app.post('/add', function (req, res) {
 });
 
 app.post('/remove', function (req, res) {
-    var usr1 = req.query.usr1;
-    var usr2 = req.query.usr2;
+    var login = req.query.login;
+    var contact = req.query.contact;
 
-    if (!usr1 || !usr2){
+    if (!login || !contact){
         res.send({result : false, message: 'missing fields'});
         return;
     }
@@ -203,8 +203,8 @@ app.post('/remove', function (req, res) {
     var checkUserquery = client.query({
         name: 'check user',
         text: "delete from ddshvknkjjo1pe.public.chatmecont"
-                +" where (usr1 = $1 AND usr2 = $2) OR (usr1 = $2 AND usr2 = $1)",
-        values: [usr1, usr2]
+                +" where (login = $1 AND contact = $2)",
+        values: [login, contact]
     })
     
     checkUserquery.on('row', function (row){
@@ -214,5 +214,36 @@ app.post('/remove', function (req, res) {
     checkUserquery.on('end', function() {
         client.end();
         res.send({result : true });
+    });
+});
+
+app.post('/contacts', function (req, res) {
+    var login = req.query.login;
+
+    if (!login){
+        res.send({result : false, message: 'missing fields'});
+        return;
+    }
+
+    var results = [];
+
+    var client = new pg.Client(conString);
+    client.connect();
+    
+    var checkUserquery = client.query({
+        name: 'check user',
+        text: "select contact from ddshvknkjjo1pe.public.chatmecont"
+                +" where login = $1",
+        values: [login]
+    })
+    
+    checkUserquery.on('row', function (row){
+        results.push(row);
+        console.log('deleted: ', row);
+    })
+
+    checkUserquery.on('end', function() {
+        client.end();
+        res.send(results);
     });
 });
