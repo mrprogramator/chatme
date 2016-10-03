@@ -54,6 +54,8 @@ app.post('/register', function (req, res) {
         return;
     }
 
+    login = login.toLowerCase();
+
     var userExists = false;
 
     var client = new pg.Client(conString);
@@ -104,6 +106,8 @@ app.post('/login', function (req, res) {
     var userExists = false;
     var hash = "";
 
+    login = login.toLowerCase();
+
     var client = new pg.Client(conString);
     client.connect();
     
@@ -142,6 +146,8 @@ app.post('/login', function (req, res) {
 app.post('/search', function (req, res) {
     var login = req.query.login;
     var searchText = req.query.searchText;
+
+    login = login.toLowerCase();
 
     if (!searchText){
         res.send({result : false, message: 'must fill all fields'});
@@ -190,6 +196,8 @@ app.post('/add', function (req, res) {
     var login = req.query.login;
     var contact = req.query.contact;
 
+    login = login.toLowerCase();
+
     if (!login || !contact){
         res.send({result : false, message: 'missing fields'});
         return;
@@ -236,6 +244,8 @@ app.post('/remove', function (req, res) {
     var login = req.query.login;
     var contact = req.query.contact;
 
+    login = login.toLowerCase();
+    
     if (!login || !contact){
         res.send({result : false, message: 'missing fields'});
         return;
@@ -264,6 +274,8 @@ app.post('/remove', function (req, res) {
 
 app.post('/contacts', function (req, res) {
     var login = req.query.login;
+
+    login = login.toLowerCase();
 
     if (!login){
         res.send({result : false, message: 'missing fields'});
@@ -295,12 +307,16 @@ app.post('/contacts', function (req, res) {
 app.post('/send', function (req, res) {
     var login = req.query.login;
     var contact = req.query.contact;
+
     var text = req.query.text;
 
     if (!login || !contact){
         res.send(false);
         return;
     }
+
+    login = login.toLowerCase();
+    
     var message = {
         login: login,
         contact: contact,
