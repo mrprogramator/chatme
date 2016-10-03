@@ -166,7 +166,11 @@ app.post('/search', function (req, res) {
     })
     
     checkUserquery.on('row', function (row){
-        results.push(row);
+        var currenUser = results.filter(function (r) { return r.login == login })[0];
+        
+        if(!currentUser){
+            results.push(row);
+        }
     })
 
     checkUserquery.on('end', function() {
