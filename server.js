@@ -166,9 +166,7 @@ app.post('/search', function (req, res) {
     })
     
     checkUserquery.on('row', function (row){
-        var currentUser = results.filter(function (r) { return r.login == login })[0];
-        
-        if(!currentUser){
+        if(row.login != login){
             results.push(row);
         }
     })
