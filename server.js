@@ -10,6 +10,9 @@ const pg = require('pg');
 var conString = "postgres://cjifxbukmqsnwd:KKtKvBLNxHopLgmjzR5XFqGhmU@ec2-54-83-205-164.compute-1.amazonaws.com:5432/ddshvknkjjo1pe?ssl=true";
 //var conString = "postgres://chatme:L37sCH47@localhost:5432/chatme";
 
+var bcrypt = require('bcrypt');
+const saltRounds = 10;
+
 var server = app.listen(process.env.PORT || 8080, function () {
     console.log('listening on PORT:',server.address().port,'...');
 });
@@ -46,16 +49,19 @@ app.post('/register', function (req, res) {
 
     checkUserquery.on('end', function() {
         if (!userExists){
-            var query = client.query({
-                name: 'insert user',
-                text: "INSERT INTO ddshvknkjjo1pe.public.chatmeusr(login, password) values($1,$2)",
-                values: [login,password]
-            })
+            bcrypt.hash(password, saltRounds, function(err, hash) {
+                var query = client.query({
+                    name: 'insert user',
+                    text: "INSERT INTO ddshvknkjjo1pe.public.chatmeusr(login, password) values($1,$2)",
+                    values: [login,hash]
+                })
 
-            query.on('end', function() {
-                client.end();
-                res.send({ result : true });
+                query.on('end', function() {
+                    client.end();
+                    res.send({ result : true });
+                });
             });
+            
         }
         else{
             client.end();
@@ -74,7 +80,7 @@ app.post('/login', function (req, res) {
     }
 
     var userExists = false;
-    var passwordIsCorrect = false;
+    var hash = "";
 
     var client = new pg.Client(conString);
     client.connect();
@@ -87,10 +93,8 @@ app.post('/login', function (req, res) {
     
     checkUserquery.on('row', function (row){
         userExists = true;
+        hash = row.password;
         
-        if (row.password == password){
-            passwordIsCorrect = true;
-        }
     })
 
     checkUserquery.on('end', function() {
@@ -100,12 +104,15 @@ app.post('/login', function (req, res) {
             res.send({result : false, message: 'user not found' });
         }
         else{
-            if(!passwordIsCorrect){
-                res.send({result : false, message: 'wrong password' });
-            }
-            else{
-                res.send({result : true });
-            }
+            bcrypt.compare(password, hash, function(err, passwordIsCorrect) {
+                if(!passwordIsCorrect){
+                    res.send({result : false, message: 'wrong password' });
+                }
+                else{
+                    res.send({result : true });
+                }
+            });
+            
         }
     });
 });
