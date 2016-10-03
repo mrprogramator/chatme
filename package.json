@@ -6,6 +6,8 @@
     "dependencies" : {
         "express" : "*",
         "pg" : "*",
-        "bcrypt" : "*"
+        "bcrypt" : "*",
+        "http" : "*",
+        "socket.io": "*"
     }
 }

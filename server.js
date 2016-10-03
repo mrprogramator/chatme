@@ -13,8 +13,30 @@ var conString = "postgres://cjifxbukmqsnwd:KKtKvBLNxHopLgmjzR5XFqGhmU@ec2-54-83-
 var bcrypt = require('bcrypt');
 const saltRounds = 10;
 
-var server = app.listen(process.env.PORT || 8080, function () {
-    console.log('listening on PORT:',server.address().port,'...');
+var http = require('http').Server(app);
+var io = require('socket.io')(http);
+
+http.listen(process.env.PORT || 8080, function(){
+  console.log('listening on :', process.env.PORT || 8080);
+});
+
+io.on('connection', function(socket){
+    console.log('a user connected');
+    socket.on('register-socket', function(login) {
+        console.log(login, socket.id);
+        var client = new pg.Client(conString);
+        client.connect();
+        
+        var addSocketquery = client.query({
+            name: 'register socket id',
+            text: "update ddshvknkjjo1pe.public.chatmeusr set socketid=$2 where login = $1",
+            values: [login, socket.id]
+        })
+
+        addSocketquery.on('end', function (){
+            client.end();
+        })
+    });
 });
 
 app.post('/register', function (req, res) {
@@ -232,7 +254,6 @@ app.post('/remove', function (req, res) {
     })
     
     checkUserquery.on('row', function (row){
-        console.log('deleted: ', row);
     })
 
     checkUserquery.on('end', function() {
@@ -263,11 +284,59 @@ app.post('/contacts', function (req, res) {
     
     checkUserquery.on('row', function (row){
         results.push(row);
-        console.log('deleted: ', row);
     })
 
     checkUserquery.on('end', function() {
         client.end();
         res.send(results);
     });
+});
+
+app.post('/send', function (req, res) {
+    var login = req.query.login;
+    var contact = req.query.contact;
+    var text = req.query.text;
+
+    if (!login || !contact){
+        res.send(false);
+        return;
+    }
+    var message = {
+        login: login,
+        contact: contact,
+        text: text
+    }
+
+    var client = new pg.Client(conString);
+
+    var socketId = "";
+
+    client.connect();
+    
+    var checkUserquery = client.query({
+        name: 'check user',
+        text: "select socketid from ddshvknkjjo1pe.public.chatmeusr"
+                +" where login = $1",
+        values: [contact]
+    })
+
+    checkUserquery.on('row', function (row){
+        socketId = row.socketid;
+        console.log(row);
+    })
+
+    checkUserquery.on('end', function() {
+
+        var currentClient = io.sockets.connected[socketId];
+
+        if (currentClient){
+            currentClient.emit('new-msg', message);
+            res.send(true);
+        }
+        else{
+            res.send(false);
+        }
+    });
+
+    
 });
