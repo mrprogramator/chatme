@@ -39,6 +39,44 @@ io.on('connection', function(socket){
     });
 });
 
+app.post('/msg', function (req, res){
+    var login = req.query.login;
+    login = login.toLowerCase();
+    var messages = [];
+    
+    var client = new pg.Client(conString);
+    client.connect();
+
+    var getMsg = client.query({
+        name: 'get msg',
+        text: "select login, contact, msgtxt from ddshvknkjjo1pe.public.chatmemsg "
+                +"where contact = $1",
+        values: [login]
+    })
+
+    getMsg.on('row', function (row) {
+        messages.push({
+            login: row.login,
+            contact: row.contact,
+            text: row.msgtxt
+        });
+    })
+
+    getMsg.on('end', function () {
+        var delMsg = client.query({
+            name: 'delete msg',
+            text: "delete from ddshvknkjjo1pe.public.chatmemsg "
+                    +"where contact = $1",
+            values: [login]
+        })
+
+        delMsg.on('end', function () {
+            client.end();
+            res.send(messages);
+        })
+    })
+})
+
 app.post('/register', function (req, res) {
     var login = req.query.login;
     var password = req.query.password;
@@ -340,11 +378,9 @@ app.post('/send', function (req, res) {
 
     checkUserquery.on('row', function (row){
         socketId = row.socketid;
-        console.log(row);
     })
 
     checkUserquery.on('end', function() {
-
         var currentClient = io.sockets.connected[socketId];
 
         if (currentClient){
@@ -352,7 +388,17 @@ app.post('/send', function (req, res) {
             res.send(true);
         }
         else{
-            res.send(false);
+            var saveMsg = client.query({
+                name: 'save msg',
+                text: "insert into ddshvknkjjo1pe.public.chatmemsg "
+                        +"(login, contact, msgtxt) values($1,$2, $3)",
+                values: [message.login, message.contact, message.text]
+            })
+
+            saveMsg.on('end', function () {
+                client.end();
+                res.send(false);
+            })
         }
     });
 
