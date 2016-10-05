@@ -7,6 +7,11 @@ app.use(express.static(__dirname + ''));
 
 const pg = require('pg');
 
+
+var FCM = require('fcm-push');
+
+var serverKey = "AIzaSyAQxDZEQGmDMYtMp--35VjfnmX9uBEPzm4";
+
 var conString = "postgres://cjifxbukmqsnwd:KKtKvBLNxHopLgmjzR5XFqGhmU@ec2-54-83-205-164.compute-1.amazonaws.com:5432/ddshvknkjjo1pe?ssl=true";
 //var conString = "postgres://chatme:L37sCH47@localhost:5432/chatme";
 
@@ -34,6 +39,23 @@ io.on('connection', function(socket){
         })
 
         addSocketquery.on('end', function (){
+            client.end();
+        })
+    });
+
+    socket.on('register-firebase', function(login, firebaseToken) {
+        console.log('firebase!:',login, firebaseToken);
+
+        var client = new pg.Client(conString);
+        client.connect();
+        
+        var addFirebasequery = client.query({
+            name: 'register Firebase id',
+            text: "update ddshvknkjjo1pe.public.chatmeusr set firebase=$2 where login = $1",
+            values: [login, firebaseToken]
+        })
+
+        addFirebasequery.on('end', function (){
             client.end();
         })
     });
@@ -180,6 +202,33 @@ app.post('/login', function (req, res) {
         }
     });
 });
+
+app.post('/logout', function (req, res) {
+    var login = req.query.login;
+
+    if (!login){
+        res.send({result : false, message: 'must fill all fields'});
+        return;
+    }
+
+    login = login.toLowerCase();
+
+    var client = new pg.Client(conString);
+    client.connect();
+    
+    var checkUserquery = client.query({
+        name: 'remove firebaseToken',
+        text: "update ddshvknkjjo1pe.public.chatmeusr set firebase='' where login = $1",
+        values: [login]
+    })
+
+    checkUserquery.on('end', function() {
+        client.end();
+        
+        res.send({ result: false });
+    });
+});
+
 
 app.post('/search', function (req, res) {
     var login = req.query.login;
@@ -366,23 +415,27 @@ app.post('/send', function (req, res) {
     var client = new pg.Client(conString);
 
     var socketId = "";
+    var firebaseToken = "";
 
     client.connect();
     
     var checkUserquery = client.query({
         name: 'check user',
-        text: "select socketid from ddshvknkjjo1pe.public.chatmeusr"
+        text: "select socketid, firebase from ddshvknkjjo1pe.public.chatmeusr"
                 +" where login = $1",
         values: [contact]
     })
 
     checkUserquery.on('row', function (row){
         socketId = row.socketid;
+        firebaseToken = row.firebase;
     })
 
     checkUserquery.on('end', function() {
         var currentClient = io.sockets.connected[socketId];
 
+        sendNotification(firebaseToken, message.text, message.login);
+        
         if (currentClient){
             currentClient.emit('new-msg', message);
             res.send(true);
@@ -404,3 +457,28 @@ app.post('/send', function (req, res) {
 
     
 });
+
+function sendNotification(firebaseToken, message, sender){
+    var fcm = new FCM(serverKey);
+
+        var message = {
+            priority : "high",
+            to: firebaseToken,
+            collapse_key: '', 
+            data: {
+                your_custom_data_key: ''
+            },
+            notification: {
+                title: sender + ' says:',
+                body: message
+            }
+        };
+
+        fcm.send(message, function(err, response){
+            if (err) {
+                console.log("Something has gone wrong!");
+            } else {
+                console.log("Successfully sent with response: ", response);
+            }
+        });
+}
